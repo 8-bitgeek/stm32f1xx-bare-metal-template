@@ -1,0 +1,7 @@
+[
+  {
+    "directory": "/Users/qitmac001685/temp/stm32/stm32f1xx_template_reg/",
+    "command": "arm-none-eabi-gcc -mcpu=cortex-m3 -mthumb -DSTM32F103xE -Iinc/CMSIS -c src/main.c",
+    "file": "src/main.c"
+  }
+]
