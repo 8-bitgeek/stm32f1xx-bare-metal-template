@@ -143,7 +143,7 @@ flash: release
 	@echo -e "\n\033[0;32m[Flashing]\033[0m"
 	@openocd -f interface/$(OPENOCD_INTERFACE).cfg \
 		-f target/$(OPENOCD_TARGET).cfg \
-        -c "program $(BINDIR)/$(PROJECT).elf verify" \
+        -c "program $(BINDIR)/$(PROJECT).hex verify" \
 		-c "reset" \
         -c "exit"
 erase:
