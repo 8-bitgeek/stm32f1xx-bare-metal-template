@@ -18,12 +18,14 @@ OBJDIR=obj
 
 # Startup File
 # Choose the correct one from lib/CMSIS/startup
-STARTUP = startup_stm32f103xb.s
-# STARTUP = startup_stm32f103xe.s
+# flash 64KB - 128KB : xb, 256 - 512: xe
+# STARTUP = startup_stm32f103xb.s
+STARTUP = startup_stm32f103xe.s
 
 # Linker Script, choose one from util/linker or modify one to suit
 # The files are fundamentally the same, just the memory mapping differs.
-LDSCRIPT=STM32F103XB_FLASH.ld
+# LDSCRIPT=STM32F103XB_FLASH.ld
+LDSCRIPT=STM32F103XE_FLASH.ld
 
 # OPENOCD_INTERFACE = stlink
 OPENOCD_INTERFACE = cmsis-dap
@@ -31,7 +33,8 @@ OPENOCD_TARGET = stm32f1x
 
 
 # Define the processor family
-DEFS += -DSTM32F103xB
+# DEFS += -DSTM32F103xB
+DEFS += -DSTM32F103xE
 
 # C compilation flags
 CFLAGS = -Wall -Wextra -Os -fno-common -ffunction-sections -fdata-sections -std=c99 -g
