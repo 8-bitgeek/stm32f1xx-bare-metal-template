@@ -1,0 +1,22 @@
+# 基于 LLVM 风格修改
+BasedOnStyle: LLVM
+
+# 语言
+Language: C
+
+# 缩进宽度为4个空格
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+# 花括号不换行(核心配置)
+BreakBeforeBraces: Attach
+
+# 访问修饰符(public/private)缩进
+AccessModifierOffset: -4
+
+# 指针样式
+PointerAlignment: Left
+
+# 列限制(0 表示不限制)
+ColumnLimit: 0
