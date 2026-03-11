@@ -160,5 +160,8 @@ erase:
 clean:
 	@rm -rf obj bin
 
+debug: release
+	@cgdb -d arm-none-eabi-gdb ${BINDIR}/${BINELF}
+
 print-%  : ; @echo $* = $($*)
 
