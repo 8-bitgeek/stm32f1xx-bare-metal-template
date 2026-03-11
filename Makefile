@@ -106,7 +106,7 @@ memory: CFLAGS += -g
 memory: CXXFLAGS += -g
 memory: LDFLAGS += -g -Wl,-Map=$(BINDIR)/$(PROJECT).map
 memory:
-	@echo -e "$(GREEN)[Top Memory Use]$(C_NC)"
+	@printf "$(GREEN)[Top Memory Use]$(C_NC)\n"
 	@$(NM) -A -l -C -td --reverse-sort --size-sort $(BINDIR)/$(BINELF) | head -n10 | cat -n
 
 debug: CFLAGS += -g3
@@ -118,40 +118,40 @@ release: $(BINDIR)/$(BINHEX)
 
 $(BINDIR)/$(BINHEX): $(BINDIR)/$(BINELF)
 	@$(CP) -O ihex $< $@
-	@echo -e "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Converted:$(C_NC)" $<
-	@echo -e "\n$(C_GREEN)[Binary Size]$(C_NC)"
+	@printf "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Converted:$(C_NC)\t%s\n" $<
+	@printf "\n$(C_GREEN) [Binary Size]$(C_NC)\n"
 	@$(SIZE) $(BINDIR)/$(BINELF)
 
 $(BINDIR)/$(BINELF): $(OBJECTS)
 	@mkdir -p $(BINDIR)
 	@$(CXX) $(OBJECTS) $(LDFLAGS) -o $@
-	@echo -e "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Linked:$(C_NC)" $<
+	@printf "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Linked:$(C_NC)\t%s\n" $<
 
 $(OBJDIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	@$(CXX) $(CXXFLAGS) $< -o $@
-	@echo -e "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Compiled:$(C_NC)" $<
+	@printf "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Compiled:$(C_NC)\t%s\n" $<
 
 $(OBJDIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	@$(CC) $(CFLAGS) $< -o $@
-	@echo -e "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Compiled:$(C_NC)" $<
+	@printf "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Compiled:$(C_NC)\t%s\n" $<
 
 $(OBJDIR)/%.o: %.s
-	@echo -e "$(C_GREEN)[Compiling]$(C_NC)"
+	@printf "$(C_GREEN)[Compiling]$(C_NC)\n"
 	@mkdir -p $(dir $@)
 	@$(CC) $(CFLAGS) $< -o $@
-	@echo -e "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Assembled:$(C_NC)" $<
+	@printf "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Assembled:$(C_NC)\t%s\n" $<
 
 flash: release
-	@echo -e "\n$(C_GREEN)[Flashing]$(C_NC)"
+	@printf "\n$(C_GREEN)[Flashing]$(C_NC)"
 	@openocd -f interface/$(OPENOCD_INTERFACE).cfg \
 		-f target/$(OPENOCD_TARGET).cfg \
         -c "program $(BINDIR)/$(PROJECT).hex verify" \
 		-c "reset" \
         -c "exit"
 erase:
-	@echo -e "\n$(C_GREEN)[Erasing]$(C_NC)"
+	@printf "\n$(C_GREEN)[Erasing]$(C_NC)"
 	@openocd -f interface/$(OPENOCD_INTERFACE).cfg \
 		-f target/$(OPENOCD_TARGET).cfg \
 		-c "init" \
