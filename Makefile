@@ -1,3 +1,4 @@
+include .color.mk
 # Project name
 PROJECT=project
 
@@ -105,7 +106,7 @@ memory: CFLAGS += -g
 memory: CXXFLAGS += -g
 memory: LDFLAGS += -g -Wl,-Map=$(BINDIR)/$(PROJECT).map
 memory:
-	@echo -e "\033[0;32m[Top Memory Use]\033[0m"
+	@echo -e "$(GREEN)[Top Memory Use]$(C_NC)"
 	@$(NM) -A -l -C -td --reverse-sort --size-sort $(BINDIR)/$(BINELF) | head -n10 | cat -n
 
 debug: CFLAGS += -g3
@@ -117,40 +118,40 @@ release: $(BINDIR)/$(BINHEX)
 
 $(BINDIR)/$(BINHEX): $(BINDIR)/$(BINELF)
 	@$(CP) -O ihex $< $@
-	@echo -e "\033[0;32m [OK] \033[0m       \033[0;33m Converted:\033[0m" $<
-	@echo -e "\n\033[0;32m[Binary Size]\033[0m"
+	@echo -e "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Converted:$(C_NC)" $<
+	@echo -e "\n$(C_GREEN)[Binary Size]$(C_NC)"
 	@$(SIZE) $(BINDIR)/$(BINELF)
 
 $(BINDIR)/$(BINELF): $(OBJECTS)
 	@mkdir -p $(BINDIR)
 	@$(CXX) $(OBJECTS) $(LDFLAGS) -o $@
-	@echo -e "\033[0;32m [OK] \033[0m       \033[0;33m Linked:\033[0m" $<
+	@echo -e "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Linked:$(C_NC)" $<
 
 $(OBJDIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
 	@$(CXX) $(CXXFLAGS) $< -o $@
-	@echo -e "\033[0;32m [OK] \033[0m       \033[0;33m Compiled:\033[0m" $<
+	@echo -e "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Compiled:$(C_NC)" $<
 
 $(OBJDIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	@$(CC) $(CFLAGS) $< -o $@
-	@echo -e "\033[0;32m [OK] \033[0m       \033[0;33m Compiled:\033[0m" $<
+	@echo -e "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Compiled:$(C_NC)" $<
 
 $(OBJDIR)/%.o: %.s
-	@echo -e "\033[0;32m[Compiling]\033[0m"
+	@echo -e "$(C_GREEN)[Compiling]$(C_NC)"
 	@mkdir -p $(dir $@)
 	@$(CC) $(CFLAGS) $< -o $@
-	@echo -e "\033[0;32m [OK] \033[0m       \033[0;33m Assembled:\033[0m" $<
+	@echo -e "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Assembled:$(C_NC)" $<
 
 flash: release
-	@echo -e "\n\033[0;32m[Flashing]\033[0m"
+	@echo -e "\n$(C_GREEN)[Flashing]$(C_NC)"
 	@openocd -f interface/$(OPENOCD_INTERFACE).cfg \
 		-f target/$(OPENOCD_TARGET).cfg \
         -c "program $(BINDIR)/$(PROJECT).hex verify" \
 		-c "reset" \
         -c "exit"
 erase:
-	@echo -e "\n\033[0;32m[Erasing]\033[0m"
+	@echo -e "\n$(C_GREEN)[Erasing]$(C_NC)"
 	@openocd -f interface/$(OPENOCD_INTERFACE).cfg \
 		-f target/$(OPENOCD_TARGET).cfg \
 		-c "init" \
