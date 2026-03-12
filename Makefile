@@ -28,9 +28,10 @@ STARTUP = startup_stm32f103xe.s
 # LDSCRIPT=STM32F103XB_FLASH.ld
 LDSCRIPT=STM32F103XE_FLASH.ld
 
-# OPENOCD_INTERFACE = stlink
-OPENOCD_INTERFACE = cmsis-dap
+OPENOCD_INTERFACE = stlink
+# OPENOCD_INTERFACE = cmsis-dap
 OPENOCD_TARGET = stm32f1x
+OPENOCD_GDB_PORT = 3333
 
 
 # Define the processor family
@@ -162,7 +163,17 @@ clean:
 	@rm -rf obj bin
 
 debug: release
-	@cgdb -d arm-none-eabi-gdb ${BINDIR}/${BINELF}
+	@printf "$(C_GREEN)[Starting OpenOCD...]${C_NC}\n"
+	@killall openocd 2>/dev/null || true  					# kill all exist process of OpenOCD
+	@openocd -f interface/$(OPENOCD_INTERFACE).cfg \
+		-f target/$(OPENOCD_TARGET).cfg \
+		-c "gdb_port $(OPENOCD_GDB_PORT)" \
+		> /tmp/openocd.log 2>&1 &  							# running in the background
+	@printf "$(C_GREEN)[Waiting for OpenOCD to start...]$(C_NC)\n"
+	@sleep 2
+	@printf "$(C_GREEN)[Starting cgdb...]$(C_NC)\n"
+	@cgdb -d arm-none-eabi-gdb $(BINDIR)/$(BINELF) || (killall openocd 2>/dev/null; exit 1)
+	@killall openocd 2>/dev/null || true  					# clean after exit
 
 print-%  : ; @echo $* = $($*)
 
