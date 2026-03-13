@@ -146,6 +146,41 @@ const uint8_t APBPrescTable[8U] =  {0, 0, 0, 0, 1, 2, 3, 4};
   * @{
   */
 
+/* Configure system clock to 72 MHz using HSE and PLL */
+void SystemClockConfig(void) { 
+    /* Enable HSE */ 
+    RCC->CR |= RCC_CR_HSEON; 
+    /* Wait HSE ready */ 
+    while (!(RCC->CR & RCC_CR_HSERDY)); 
+    /* Configure Flash prefetch buffer and latency */
+    FLASH->ACR |= FLASH_ACR_PRFTBE;      // Enable Flash prefetch buffer to improve instruction fetch performance
+    FLASH->ACR &= ~FLASH_ACR_LATENCY;    // Clear current Flash latency configuration
+    FLASH->ACR |= FLASH_ACR_LATENCY_2;   // Set Flash latency to 2 wait states (required for 72 MHz)
+
+    /* Configure AHB and APB bus prescalers */
+    RCC->CFGR |= RCC_CFGR_HPRE_DIV1;     // AHB clock (HCLK) = SYSCLK / 1
+    RCC->CFGR |= RCC_CFGR_PPRE2_DIV1;    // APB2 clock = HCLK / 1
+    RCC->CFGR |= RCC_CFGR_PPRE1_DIV2;    // APB1 clock = HCLK / 2 (APB1 max 36 MHz)
+
+    /* Configure PLL clock source and multiplication factor */
+    RCC->CFGR |= RCC_CFGR_PLLSRC;        // Select HSE as PLL input clock source
+    RCC->CFGR |= RCC_CFGR_PLLMULL9;      // Set PLL multiplication factor to 9 (8 MHz * 9 = 72 MHz)
+
+    /* Enable PLL */
+    RCC->CR |= RCC_CR_PLLON;             // Turn on PLL
+    while(!(RCC->CR & RCC_CR_PLLRDY));   // Wait until PLL is stable and ready
+
+    /* Select PLL as system clock source */
+    RCC->CFGR &= ~RCC_CFGR_SW;           // Clear system clock switch bits
+    RCC->CFGR |= RCC_CFGR_SW_PLL;        // Select PLL as system clock
+
+    /* Wait until PLL is actually used as the system clock */
+    while((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_PLL);
+
+    /* Update the global SystemCoreClock variable */
+    SystemCoreClock = 72000000;          // System core clock = 72 MHz
+}
+
 /**
   * @brief  Setup the microcontroller system
   *         Initialize the Embedded Flash Interface, the PLL and update the 
@@ -154,7 +189,7 @@ const uint8_t APBPrescTable[8U] =  {0, 0, 0, 0, 1, 2, 3, 4};
   * @param  None
   * @retval None
   */
-void SystemInit (void)
+void SystemInit(void)
 {
   /* Reset the RCC clock configuration to the default reset state(for debug purpose) */
   /* Set HSION bit */
@@ -207,7 +242,12 @@ void SystemInit (void)
 #else
   SCB->VTOR = FLASH_BASE | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal FLASH. */
 #endif 
+
+  /* Configure system clock to 72 MHz using HSE and PLL */
+  SystemClockConfig();
 }
+
+
 
 /**
   * @brief  Update SystemCoreClock variable according to Clock Register Values.
@@ -244,7 +284,7 @@ void SystemInit (void)
   * @param  None
   * @retval None
   */
-void SystemCoreClockUpdate (void)
+void SystemCoreClockUpdate(void)
 {
   uint32_t tmp = 0U, pllmull = 0U, pllsource = 0U;
 
