@@ -1,17 +1,17 @@
 include .color.mk
 # Project name
-PROJECT=project
+PROJECT = template
 
 # User defined global definitions
 DEFS =
 
 # Directory Structure
-BINDIR=bin
-INCDIR=inc
-INCDIR+=lib
-SRCDIR=src
-LIBDIR=lib
-OBJDIR=obj
+BINDIR = bin
+INCDIR = inc
+INCDIR += lib
+SRCDIR = src
+LIBDIR = lib
+OBJDIR = obj
 
 # Uncomment to use the arm-math library (DSP, PID, MATH functions)
 # This is pretty space hungy
@@ -26,7 +26,7 @@ STARTUP = startup_stm32f103xe.s
 # Linker Script, choose one from util/linker or modify one to suit
 # The files are fundamentally the same, just the memory mapping differs.
 # LDSCRIPT=STM32F103XB_FLASH.ld
-LDSCRIPT=STM32F103XE_FLASH.ld
+LDSCRIPT = STM32F103XE_FLASH.ld
 
 OPENOCD_INTERFACE = stlink
 # OPENOCD_INTERFACE = cmsis-dap
