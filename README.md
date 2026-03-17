@@ -77,3 +77,14 @@ STARTUP = startup_stm32f103xb.s         # Choose the correct one for the device 
 LDSCRIPT=STM32F103XB_FLASH.ld           # Choose the correct one for the device (util/linker).
 DEFS+= -DSTM32F103xB                    # Change the include for the device (inc/CMSIS/stm32f1xx.h).
 ```
+
+### Note
+
+所有 MCU 外设初始化都是同一个套路:
+
+```
+1. 打开时钟
+2. 配置 GPIO
+3. 配置外设寄存器
+4. 使能外设
+```
