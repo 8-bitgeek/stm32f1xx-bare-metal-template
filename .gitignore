@@ -2,3 +2,4 @@ bin/
 obj/
 # ignore clangd index cache
 .cache/
+**/.DS_Store
