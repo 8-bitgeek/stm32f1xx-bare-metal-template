@@ -6,5 +6,6 @@ void uart1_init(void);
 void uart1_write_char(uint8_t byte);
 void uart1_write_str(uint8_t * str, uint8_t len);
 uint8_t uart1_receive_char(void);
+void uart1_receive_str(uint8_t * buf, uint8_t * len);
 
 #endif

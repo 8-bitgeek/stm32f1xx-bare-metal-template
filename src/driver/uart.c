@@ -2,6 +2,26 @@
 #include "stm32f103xe.h"
 #include <stdint.h>
 
+#define USART1_CLK  72000000UL                          // APB2 时钟频率 72MHz
+#define BAUDRATE    115200UL
+
+/**
+  * @brief  等待指定事件发生
+  * @param  event_msk 要等待的事件
+  * @retval 1 - 事件发生; 0 - 超时;
+  */
+static uint8_t wait_event(USART_TypeDef * usart, uint32_t event_msk) {
+    uint32_t timeout = 0xFFFFFFFF;
+
+    while((usart->SR & event_msk) == 0) {              // 事件未发生
+        if (--timeout == 0) {
+            return 0;                                   // 超时返回 0
+        }
+    }
+
+    return 1;                                           // 事件发生返回 1
+}
+
 void uart1_init(void) {
     // 1. 启用 USART1 时钟
     // 1.1 开启串口 1 外设时钟
@@ -12,17 +32,16 @@ void uart1_init(void) {
     // 2. 配置引脚工作模式
     // 2.1 配置 PA9 为复用推挽输出
     GPIOA->CRH &= ~(0xF << 4);
-    GPIOA->CRH |= (0xB << 4);               // 1011
+    GPIOA->CRH |= (0xB << 4);                           // 1011
     // 2.2 配置 PA10 为浮空输入
-    GPIOA->CRH &= ~GPIO_CRH_MODE10;         // 清除 PA10 模式(MODE10 = 00)
-    GPIOA->CRH &= ~GPIO_CRH_CNF10;          // 设置为输入模式(CNF10 = 01)
-    GPIOA->CRH |= GPIO_CRH_CNF10_0;         // 设置为浮空输入
+    GPIOA->CRH &= ~GPIO_CRH_MODE10;                     // 清除 PA10 模式(MODE10 = 00)
+    GPIOA->CRH &= ~GPIO_CRH_CNF10;                      // 设置为输入模式(CNF10 = 01)
+    GPIOA->CRH |= GPIO_CRH_CNF10_0;                     // 设置为浮空输入
 
 
     // 3. 配置串口的参数
     // 3.1 配置波特率为 115200
-    USART1->BRR = 0x271;                             // 72MHz APB2
-    // USART1->BRR = 0x45;                                 // 8MHz APB2
+    USART1->BRR = (USART1_CLK + BAUDRATE / 2) / BAUDRATE;
     // 3.2 配置串口使能, 并使能接收与发送
     USART1->CR1 |= (USART_CR1_TE | USART_CR1_RE);       // Transmit Enable & Receive Enable
     // 3.3 配置一个字长度为 8bit
@@ -31,7 +50,9 @@ void uart1_init(void) {
     USART1->CR1 &= ~USART_CR1_PCE;                      // Parity Control Enable
     // 3.5 配置停止位的长度: 0
     USART1->CR2 &= ~USART_CR2_STOP;
-    // 3.6 USART enable
+
+
+    // 4. USART enable
     USART1->CR1 |= USART_CR1_UE;                        // USART Enable
 }
 
@@ -40,9 +61,7 @@ void uart1_init(void) {
  * @bref 发送一个字节
  */
 void uart1_write_char(uint8_t byte) {
-    // 等待发送完成
-    while ((USART1->SR & USART_SR_TXE) == 0) {          // Transmit Data Register Empty 
-    }
+    wait_event(USART1, USART_SR_TXE);                           // Transmit Data Register Empty 
 
     // 写数据到数据寄存器
     USART1->DR = byte;
@@ -62,8 +81,7 @@ void uart1_write_str(uint8_t * str, uint8_t len) {
  */
 uint8_t uart1_receive_char(void) {
     // 等待接收寄存器非空
-    while ((USART1->SR & USART_SR_RXNE) == 0) {
-    }
+    wait_event(USART1, USART_SR_RXNE);
 
     // 返回接收到的数据
     return USART1->DR;
@@ -77,21 +95,32 @@ uint8_t uart1_receive_char(void) {
 void uart1_receive_str(uint8_t * buf, uint8_t * len) {
     uint8_t i = 0;
     while (1) {
-        // 等待接收寄存器非空
-        while ((USART1->SR & USART_SR_RXNE) == 0) {
-            // 接收过程中判断是否收到空闲帧
-            if (USART1->SR & USART_SR_IDLE) {    // 接收到空闲帧 
-                *len = i;
-                return;
-            }
+        // 等待接收寄存器非空或接收到空闲帧事件发生
+        if (wait_event(USART1, USART_SR_RXNE | USART_SR_IDLE) == 0) {
+            // 如果事件没发生, 超时了, 则直接退出
+            break;
         }
 
-        // 接收到数据
-        buf[i] = USART1->DR;
-        i++;
+        // 事件发生了, 则判断是什么事件
+        if (USART1->SR & USART_SR_RXNE) {                       // 接收到数据
+            buf[i++] = USART1->DR;
+        } else {                                                // 接收到空闲帧
+            // 清除 IDLE 标志: 依次读取 SR 和 DR
+            uint32_t temp = USART1->SR;
+            temp = USART1->DR;
+            (void) temp;
+            // 填充 '\0'
+            buf[i] = '\0';
+            break;
+        }
     }
+
+    *len = i;
 }
 
+/**
+  * 实现 printf() 回调函数, 将信息输出到串口
+  */
 int _write(int file, char * ptr, int len) {
     uart1_write_str((uint8_t *) ptr, len);
     return len;
