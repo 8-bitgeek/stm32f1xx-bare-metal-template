@@ -127,5 +127,26 @@ define flash
     load
 end
 
+# --------------------------------
+# 自定义命令: reboot
+# --------------------------------
+# 完全重启调试：
+# 1. 复位芯片并暂停:
+#       - monitor: 告诉 gdb 不要自己处理这条命令, 转发给 OpenOCD 执行
+#       - halt: 复位后暂停 cpu 执行, 否则芯片复位后会直接运行
+# 2. 重新烧录固件
+# 3. 将 PC 指向 Reset_Handler
+#
+# 使用方法：reboot
+define reboot
+    # 复位并停止
+    monitor reset halt
+    # 重新烧录程序
+    load
+    # 设置程序计数器
+    set $pc = Reset_Handler
+    echo \n--- restart success, start at Reset_Handler ---\n
+end
+
 echo "================ .gdbinit LOADED ================\n"
 
