@@ -88,3 +88,34 @@ DEFS+= -DSTM32F103xB                    # Change the include for the device (inc
 3. 配置外设寄存器
 4. 使能外设
 ```
+
+### 查看 Flash 中的数据
+
+#### 使用 OpenOCD + telnet
+
+```shell
+# 1. 启动 OpenOCD
+openocd -f interface/cmsis-dap.cfg -f target/stm32f1x.cfg
+
+# 2. 另开一个窗口连接 OpenOCD
+telnet localhost 4444
+# 2.1 dump flash (地址 0x08000000, 长度 0x10000, 输出到文件 flash.bin)
+dump_image flash.bin 0x08000000 0x10000
+
+# 3. 查看 flash.bin 文件
+xxd flash.bin | less
+```
+
+
+#### 使用 OpenOCD + GDB
+
+```shell
+# 1. 连接 OpenOCD
+target remote :3333
+
+# 2. dump (地址 0x08000000 - 0x08004000)
+dump binary memroy flash.bin 0x08000000 0x08004000
+
+# 3. 查看 flash.bin 文件
+xxd flash.bin | less
+```
