@@ -114,7 +114,7 @@ xxd flash.bin | less
 target remote :3333
 
 # 2. dump (地址 0x08000000 - 0x08004000)
-dump binary memroy flash.bin 0x08000000 0x08004000
+dump binary memory flash.bin 0x08000000 0x08004000
 
 # 3. 查看 flash.bin 文件
 xxd flash.bin | less
