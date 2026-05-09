@@ -148,5 +148,19 @@ define reboot
     echo \n--- restart success, start at Reset_Handler ---\n
 end
 
+# 将内存映像 dump 到 flash.bin 文件
+# 使用方法: dm 0x08004000 0x08004100
+define dm
+    # 将内存映像 dump 到文件
+    # $arg0 = start
+    # $arg1 = length
+    dump binary memory flash.bin $arg0 ($arg0 + $arg1)
+end
+document dm
+    Dump memory into file
+    Usage: dm <start_address> <length>
+    Example: dm 0x08004000 0x100
+end
+
 echo "================ .gdbinit LOADED ================\n"
 
