@@ -22,6 +22,13 @@ static uint8_t wait_event(USART_TypeDef * usart, uint32_t event_msk) {
     return 1;                                           // 事件发生返回 1
 }
 
+/**
+  * 外设初始化通用流程: 
+  *     1. 开启外设与使用的 GPIO 引脚时钟
+  *     2. 配置 GPIO 引脚工作模式
+  *     3. 配置外设寄存器
+  *     4. 使能外设
+  */
 void uart1_init(void) {
     // 1. 启用 USART1 时钟
     // 1.1 开启串口 1 外设时钟
@@ -29,7 +36,7 @@ void uart1_init(void) {
     // 1.2 开启 GPIO 时钟
     RCC->APB2ENR |= RCC_APB2ENR_IOPAEN;
 
-    // 2. 配置引脚工作模式
+    // 2. 配置 GPIO 引脚工作模式
     // 2.1 配置 PA9 为复用推挽输出
     GPIOA->CRH &= ~(0xF << 4);
     GPIOA->CRH |= (0xB << 4);                           // 1011
@@ -39,7 +46,7 @@ void uart1_init(void) {
     GPIOA->CRH |= GPIO_CRH_CNF10_0;                     // 设置为浮空输入
 
 
-    // 3. 配置串口的参数
+    // 3. 配置串口寄存器
     // 3.1 配置波特率为 115200
     USART1->BRR = (USART1_CLK + BAUDRATE / 2) / BAUDRATE;
     // 3.2 配置串口使能, 并使能接收与发送

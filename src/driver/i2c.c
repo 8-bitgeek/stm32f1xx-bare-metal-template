@@ -18,6 +18,13 @@ static i2c_type i2c1_conf = {
 
 static i2c_type * volatile i2c = &i2c1_conf;
 
+/**
+  * 外设初始化通用流程: 
+  *     1. 开启外设与使用的 GPIO 引脚时钟
+  *     2. 配置 GPIO 引脚工作模式
+  *     3. 配置外设寄存器
+  *     4. 使能外设
+  */
 void i2c_init(void) {
     I2C_TypeDef * instance = i2c->instance;
 
