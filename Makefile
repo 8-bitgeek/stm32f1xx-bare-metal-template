@@ -5,6 +5,9 @@ PROJECT = template
 # User defined global definitions
 DEFS =
 
+# Default optimize level
+OPTIMIZE = -Os
+
 # Directory Structure
 BINDIR = bin
 INCDIR = inc
@@ -20,13 +23,17 @@ OBJDIR = obj
 # Startup File
 # Choose the correct one from lib/CMSIS/startup
 # flash 64KB - 128KB : xb, 256 - 512: xe
-# STARTUP = startup_stm32f103xb.s
-STARTUP = startup_stm32f103xe.s
+STARTUP = startup_stm32f103xb.s
+# STARTUP = startup_stm32f103xe.s
 
 # Linker Script, choose one from util/linker or modify one to suit
 # The files are fundamentally the same, just the memory mapping differs.
-# LDSCRIPT=STM32F103XB_FLASH.ld
-LDSCRIPT = STM32F103XE_FLASH.ld
+LDSCRIPT=STM32F103XB_FLASH.ld
+# LDSCRIPT = STM32F103XE_FLASH.ld
+
+# Define the processor family
+DEFS += -DSTM32F103xB
+# DEFS += -DSTM32F103xE
 
 OPENOCD_INTERFACE = stlink
 # OPENOCD_INTERFACE = cmsis-dap
@@ -34,15 +41,12 @@ OPENOCD_TARGET = stm32f1x
 OPENOCD_GDB_PORT = 3333
 
 
-# Define the processor family
-# DEFS += -DSTM32F103xB
-DEFS += -DSTM32F103xE
 
 # C compilation flags
-CFLAGS = -Wall -Wextra -Os -fno-common -ffunction-sections -fdata-sections -std=c99 -g
+CFLAGS = -Wall -Wextra $(OPTIMIZE) -fno-common -ffunction-sections -fdata-sections -std=c99
 
 # C++ compilation flags
-CXXFLAGS = -Wall -Wextra -Os -fno-common -ffunction-sections -fdata-sections -std=c++11 -g
+CXXFLAGS = -Wall -Wextra $(OPTIMIZE) -fno-common -ffunction-sections -fdata-sections -std=c++11
 
 # Linker flags
 LDFLAGS = -Wl,--gc-sections --static -Wl,-Map=bin/$(PROJECT).map,--cref
@@ -110,11 +114,6 @@ memory:
 	@printf "$(GREEN)[Top Memory Use]$(C_NC)\n"
 	@$(NM) -A -l -C -td --reverse-sort --size-sort $(BINDIR)/$(BINELF) | head -n10 | cat -n
 
-debug: CFLAGS += -g3
-debug: CXXFLAGS += -g3
-debug: LDFLAGS += -g3
-debug: release
-
 release: $(BINDIR)/$(BINHEX)
 
 $(BINDIR)/$(BINHEX): $(BINDIR)/$(BINELF)
@@ -162,7 +161,11 @@ erase:
 clean:
 	@rm -rf obj bin
 
-debug: release
+debug: OPTIMIZE = -O0
+debug: CFLAGS += -g3
+debug: CXXFLAGS += -g3
+debug: LDFLAGS += -g3
+debug: clean release
 	@printf "$(C_GREEN)[Starting OpenOCD...]${C_NC}\n"
 	@killall openocd 2>/dev/null || true  					# kill all exist process of OpenOCD
 	@openocd -f interface/$(OPENOCD_INTERFACE).cfg \
