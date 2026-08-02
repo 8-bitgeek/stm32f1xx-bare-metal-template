@@ -57,7 +57,7 @@ CFLAGS = -Wall -Wextra $(OPTIMIZE) -fno-common -ffunction-sections -fdata-sectio
 DEPFLAGS = -MMD -MP -MF $(@:.o=.d) -MT $@
 
 # Linker flags
-LDFLAGS = -Wl,--gc-sections --static -Wl,-Map=bin/$(PROJECT).map,--cref
+LDFLAGS = -Wl,--gc-sections --static -Wl,-Map=bin/$(PROJECT).map,--cref -Wl,--no-warn-rwx-segments
 
 ifdef USE_ARM_MATH
 ARM_LIB_DIR = $(LIBDIR)/ARM
