@@ -2,7 +2,7 @@ include .color.mk
 # Project name
 PROJECT = template
 
-# User defined global definitions
+# Preprocessor definitions passed to every C compilation.
 DEFS =
 
 # Default optimize level
@@ -20,20 +20,29 @@ OBJDIR = obj
 # This is pretty space hungy
 #USE_ARM_MATH=1
 
-# Startup File
-# Choose the correct one from lib/CMSIS/startup
-# flash 64KB - 128KB : xb, 256 - 512: xe
-STARTUP = startup_stm32f103xb.s
-# STARTUP = startup_stm32f103xe.s
+# MCU ?= STM32F103xE
+MCU ?= STM32F103xB
 
+ifeq ($(MCU),STM32F103xB) 
+# Startup File: Choose the correct one from lib/CMSIS/startup
+STARTUP       := startup_stm32f103xb.s
 # Linker Script, choose one from util/linker or modify one to suit
-# The files are fundamentally the same, just the memory mapping differs.
-LDSCRIPT=STM32F103XB_FLASH.ld
-# LDSCRIPT = STM32F103XE_FLASH.ld
-
+LDSCRIPT      := STM32F103XB_FLASH.ld
 # Define the processor family
-DEFS += -DSTM32F103xB
-# DEFS += -DSTM32F103xE
+MCU_DEF       := -DSTM32F103xB
+FLASH_SIZE_KB := 128
+RAM_SIZE_KB   := 20
+else ifeq ($(MCU),STM32F103xE)
+STARTUP       := startup_stm32f103xe.s
+LDSCRIPT      := STM32F103XE_FLASH.ld
+MCU_DEF       := -DSTM32F103xE
+FLASH_SIZE_KB := 512
+RAM_SIZE_KB   := 64
+else 
+$(error Unsupported MCU "$(MCU)"; supported: STM32F103xB STM32F103xE)
+endif
+
+DEFS += $(MCU_DEF)
 
 OPENOCD_INTERFACE = stlink
 # OPENOCD_INTERFACE = cmsis-dap
@@ -41,12 +50,11 @@ OPENOCD_TARGET = stm32f1x
 OPENOCD_GDB_PORT = 3333
 
 
-
 # C compilation flags
 CFLAGS = -Wall -Wextra $(OPTIMIZE) -fno-common -ffunction-sections -fdata-sections -std=c99
 
-# C++ compilation flags
-CXXFLAGS = -Wall -Wextra $(OPTIMIZE) -fno-common -ffunction-sections -fdata-sections -std=c++11
+# Generate a .d file for each C object so header changes trigger recompilation.
+DEPFLAGS = -MMD -MP -MF $(@:.o=.d) -MT $@
 
 # Linker flags
 LDFLAGS = -Wl,--gc-sections --static -Wl,-Map=bin/$(PROJECT).map,--cref
@@ -66,7 +74,6 @@ MCFLAGS = -mcpu=cortex-m3 -mthumb -mlittle-endian -msoft-float -mfix-cortex-m3-l
 
 # GNU ARM Embedded Toolchain
 CC = arm-none-eabi-gcc
-CXX = arm-none-eabi-g++
 LD = arm-none-eabi-ld
 AR = arm-none-eabi-ar
 AS = arm-none-eabi-as
@@ -79,21 +86,17 @@ A2L = arm-none-eabi-addr2line
 # Find source files
 ASOURCES = $(LIBDIR)/CMSIS/startup/$(STARTUP)
 CSOURCES = $(shell find -L $(SRCDIR) $(LIBDIR) -name '*.c')
-CPPSOURCES = $(shell find -L $(SRCDIR) $(LIBDIR) -name '*.cpp')
 
 # Find header directories
 INC = $(shell find -L $(INCDIR) -name '*.h' -exec dirname {} \; | uniq)
-INC += $(shell find -L $(INCDIR) -name '*.hpp' -exec dirname {} \; | uniq)
 INCLUDES = $(INC:%=-I%)
 
-CFLAGS += -c $(MCFLAGS) $(DEFS) $(INCLUDES)
-CXXFLAGS += -c $(MCFLAGS) $(DEFS) $(INCLUDES)
+CFLAGS += $(MCFLAGS) $(DEFS) $(INCLUDES)
 
 AOBJECTS = $(patsubst %,obj/%,$(ASOURCES))
 COBJECTS = $(patsubst %,obj/%,$(CSOURCES))
-CPPOBJECTS = $(patsubst %,obj/%,$(CPPSOURCES))
-
-OBJECTS = $(AOBJECTS:%.s=%.o) $(COBJECTS:%.c=%.o) $(CPPOBJECTS:%.cpp=%.o)
+OBJECTS = $(AOBJECTS:%.s=%.o) $(COBJECTS:%.c=%.o)
+DEPS := $(COBJECTS:.c=.d)
 
 # Define output files ELF & IHEX
 BINELF = $(PROJECT).elf
@@ -103,12 +106,10 @@ BINHEX = $(PROJECT).hex
 LDFLAGS += -T util/linker/$(LDSCRIPT) $(MCFLAGS) 
 
 # Build Rules
-.PHONY: all release debug clean flash erase
-
+.PHONY: all release debug clean flash erase info
 all: release
 
 memory: CFLAGS += -g
-memory: CXXFLAGS += -g
 memory: LDFLAGS += -g -Wl,-Map=$(BINDIR)/$(PROJECT).map
 memory:
 	@printf "$(GREEN)[Top Memory Use]$(C_NC)\n"
@@ -124,23 +125,18 @@ $(BINDIR)/$(BINHEX): $(BINDIR)/$(BINELF)
 
 $(BINDIR)/$(BINELF): $(OBJECTS)
 	@mkdir -p $(BINDIR)
-	@$(CXX) $(OBJECTS) $(LDFLAGS) -o $@
+	@$(CC) $(OBJECTS) $(LDFLAGS) -o $@
 	@printf "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Linked:$(C_NC)\t%s\n" $<
-
-$(OBJDIR)/%.o: %.cpp
-	@mkdir -p $(dir $@)
-	@$(CXX) $(CXXFLAGS) $< -o $@
-	@printf "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Compiled:$(C_NC)\t%s\n" $<
 
 $(OBJDIR)/%.o: %.c
 	@mkdir -p $(dir $@)
-	@$(CC) $(CFLAGS) $< -o $@
+	@$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 	@printf "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Compiled:$(C_NC)\t%s\n" $<
 
 $(OBJDIR)/%.o: %.s
 	@printf "$(C_GREEN)[Compiling]$(C_NC)\n"
 	@mkdir -p $(dir $@)
-	@$(CC) $(CFLAGS) $< -o $@
+	@$(CC) $(CFLAGS) -c $< -o $@
 	@printf "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Assembled:$(C_NC)\t%s\n" $<
 
 flash: release
@@ -163,7 +159,6 @@ clean:
 
 debug: OPTIMIZE = -O0
 debug: CFLAGS += -g3
-debug: CXXFLAGS += -g3
 debug: LDFLAGS += -g3
 debug: clean release
 	@printf "$(C_GREEN)[Starting OpenOCD...]${C_NC}\n"
@@ -178,5 +173,18 @@ debug: clean release
 	@cgdb -d arm-none-eabi-gdb $(BINDIR)/$(BINELF) || (killall openocd 2>/dev/null; exit 1)
 	@killall openocd 2>/dev/null || true  					# clean after exit
 
-print-%  : ; @echo $* = $($*)
+# Print a Make variable, for example: make print-MCU
+print-%:
+	@echo $* = $($*)
 
+info:
+	@printf "MCU           = %s\n" "$(MCU)"
+	@printf "STARTUP       = %s\n" "$(STARTUP)"
+	@printf "LDSCRIPT      = %s\n" "$(LDSCRIPT)"
+	@printf "MCU_DEF       = %s\n" "$(MCU_DEF)"
+	@printf "FLASH_SIZE_KB = %s\n" "$(FLASH_SIZE_KB)"
+	@printf "RAM_SIZE_KB   = %s\n" "$(RAM_SIZE_KB)"
+
+
+# Include compiler-generated header dependencies; ignore them before the first build.
+-include $(DEPS)
