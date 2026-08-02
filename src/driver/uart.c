@@ -1,5 +1,4 @@
 #include "uart.h"
-#include "stm32f103xe.h"
 #include <stdint.h>
 
 #define USART1_CLK  72000000UL                          // APB2 时钟频率 72MHz
@@ -129,6 +128,7 @@ void uart1_receive_str(uint8_t * buf, uint8_t * len) {
   * 实现 printf() 回调函数, 将信息输出到串口
   */
 int _write(int file, char * ptr, int len) {
+    (void) file;
     uart1_write_str((uint8_t *) ptr, len);
     return len;
 }

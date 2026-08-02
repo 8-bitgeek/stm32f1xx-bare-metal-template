@@ -59,9 +59,6 @@ typedef enum {
     C_DATA = 0x40,                              // 数据控制字节 
 } CTRL_BYTE;
 
-static uint8_t current_x;                       // 当前光标所在列
-static uint8_t current_y;                       // 当前光标所在行
-
 /* 显存缓冲区 */
 uint8_t oled_display_buffer[OLED_HEIGHT / 8][OLED_WIDTH];
 
