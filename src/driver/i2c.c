@@ -16,7 +16,11 @@ static i2c_type i2c1_conf = {
     .scl_pin = 6,  // PB6
 };
 
-static i2c_type * volatile i2c = &i2c1_conf;
+static i2c_type i2c2_conf = {
+    .instance = I2C2,
+    .sda_pin = 11,  // PB11
+    .scl_pin = 10,  // PB10
+};
 
 /**
   * 外设初始化通用流程: 
@@ -25,7 +29,8 @@ static i2c_type * volatile i2c = &i2c1_conf;
   *     3. 配置外设寄存器
   *     4. 使能外设
   */
-void i2c_init(void) {
+i2c_type * i2c_init(uint8_t num) {
+    i2c_type * i2c = num == 1 ? &i2c1_conf : &i2c2_conf;
     I2C_TypeDef * instance = i2c->instance;
 
     // 1. Enable clock: I2C and GPIO
@@ -67,19 +72,21 @@ void i2c_init(void) {
 
     // 4. Enable periphrial
     instance->CR1 |= I2C_CR1_PE;
+
+    return i2c;
 }
 
 /**
   * @brief I2C 发送起始条件
   * @retval 1 - 成功; 0 - 失败;
   */
-uint8_t i2c_start(void) {
+uint8_t i2c_start(i2c_type * i2c) {
     // 发送起始位, Start bit 置位后会自动发送一个起始位
     // repeated start generation: 重复起始位 -> 不发送结束位, 直接再发送一个起始位, 省去一个结束信号的发送
     i2c->instance->CR1 |= I2C_CR1_START;
 
     // 等待 Start Bit 置位
-    uint8_t suc = i2c_wait_event(I2C_SR1_SB_Msk);
+    uint8_t suc = i2c_wait_event(i2c, I2C_SR1_SB_Msk);
     uint32_t tmp = i2c->instance->SR1;
     (void) tmp;
     return suc;
@@ -88,9 +95,12 @@ uint8_t i2c_start(void) {
 /**
   * @brief 发送停止信号
   */
-void i2c_stop(void) {
+void i2c_stop(i2c_type * i2c) {
     // 发送停止信号
     i2c->instance->CR1 |= I2C_CR1_STOP;
+    // 等待 Stop 位被硬件自动清除(Stop 发送完毕后硬件复位)
+    while (i2c->instance->CR1 & I2C_CR1_STOP);
+    // i2c_wait_event(i2c, I2C_CR1_STOP_Msk);
 }
 
 /**
@@ -99,12 +109,12 @@ void i2c_stop(void) {
   * @param rw 读写标志位(r - 1, w - 0)
   * @retval 1 - 成功; 0 - 失败;
   */
-uint8_t i2c_send_addr(uint8_t addr, uint8_t rw) {
+uint8_t i2c_send_addr(i2c_type * i2c, uint8_t addr, uint8_t rw) {
     // 发送从机地址加读写标志位
     i2c->instance->DR = (addr << 1) | rw;
 
     // 等待地址发送完成
-    uint8_t ret = i2c_wait_event(I2C_SR1_ADDR_Msk);             // 地址发送完成标志
+    uint8_t ret = i2c_wait_event(i2c, I2C_SR1_ADDR_Msk);        // 地址发送完成标志: ADDR sent
 
     // 读取 SR1 后再读取 SR2 清除 ADDR 标志
     volatile uint32_t tmp = i2c->instance->SR1;
@@ -123,12 +133,12 @@ uint8_t i2c_send_addr(uint8_t addr, uint8_t rw) {
   * @param data 要发送的数据
   * @retval 1 - 发送成功 (收到 ACK) 0 - 发送失败 (收到 NACK 或超时）
   */
-uint8_t i2c_send_data(uint8_t data) {
+uint8_t i2c_send_data(i2c_type * i2c, uint8_t data) {
     // 发送数据
     i2c->instance->DR = data;
     
     // 等待传输完成
-    if (i2c_wait_event(I2C_SR1_BTF_Msk) == 0) {
+    if (i2c_wait_event(i2c, I2C_SR1_BTF_Msk) == 0) {
         return 0;                               // 超时
     }
     
@@ -141,12 +151,13 @@ uint8_t i2c_send_data(uint8_t data) {
     return 1;                                   // 成功收到 ACK
 }
 
+
 /**
-  * @brief 等待对应事件完成(状态标志置位)
-  * @param event_mask 事件标志位掩码
+  * @brief  等待对应事件完成(状态标志置位)
+  * @param  event_mask 事件标志位掩码
   * @retval 1 - 成功; 0 - 失败;
   */
-uint8_t i2c_wait_event(uint32_t event_mask) {
+uint8_t i2c_wait_event(i2c_type * i2c, uint32_t event_mask) {
     uint32_t timeout = 100000;
 
     while ((i2c->instance->SR1 & event_mask) == 0) {
@@ -162,18 +173,18 @@ uint8_t i2c_wait_event(uint32_t event_mask) {
   * @param ack 1 - 发送 NACK(最后一个字节); 0 - 发送 ACK(继续读)
   * @retval 读取到的数据
   */
-uint8_t i2c_read_byte(uint8_t ack) {
-    // 等待 RXNE (接收缓冲区非空)
-    i2c_wait_event(I2C_SR1_RXNE);
-    // 读取数据
-    uint8_t data = i2c->instance->DR;
-
-    // 配置下一个字节的 ACK 应答
+uint8_t i2c_read_byte(i2c_type * i2c, uint8_t ack) {
+    // 要在读取数据之前配置 ACK 应答
     if (ack) {
         i2c->instance->CR1 &= ~I2C_CR1_ACK;
     } else {
         i2c->instance->CR1 |= I2C_CR1_ACK;
     }
+
+    // 等待 RXNE (接收缓冲区非空)
+    i2c_wait_event(i2c, I2C_SR1_RXNE);
+    // 读取数据
+    uint8_t data = i2c->instance->DR;
 
     return data;
 }
