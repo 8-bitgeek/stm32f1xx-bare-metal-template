@@ -57,7 +57,7 @@ CFLAGS = -Wall -Wextra $(OPTIMIZE) -fno-common -ffunction-sections -fdata-sectio
 DEPFLAGS = -MMD -MP -MF $(@:.o=.d) -MT $@
 
 # Linker flags
-LDFLAGS = -Wl,--gc-sections --static -Wl,-Map=bin/$(PROJECT).map,--cref -Wl,--no-warn-rwx-segments
+LDFLAGS = -Wl,--gc-sections --static -Wl,-Map=$(BINDIR)/$(PROJECT).map,--cref -Wl,--no-warn-rwx-segments
 
 ifdef USE_ARM_MATH
 ARM_LIB_DIR = $(LIBDIR)/ARM
@@ -93,8 +93,8 @@ INCLUDES = $(INC:%=-I%)
 
 CFLAGS += $(MCFLAGS) $(DEFS) $(INCLUDES)
 
-AOBJECTS = $(patsubst %,obj/%,$(ASOURCES))
-COBJECTS = $(patsubst %,obj/%,$(CSOURCES))
+AOBJECTS = $(patsubst %,$(OBJDIR)/%,$(ASOURCES))
+COBJECTS = $(patsubst %,$(OBJDIR)/%,$(CSOURCES))
 OBJECTS = $(AOBJECTS:%.s=%.o) $(COBJECTS:%.c=%.o)
 DEPS := $(COBJECTS:.c=.d)
 
@@ -106,7 +106,7 @@ BINHEX = $(PROJECT).hex
 LDFLAGS += -T util/linker/$(LDSCRIPT) $(MCFLAGS) 
 
 # Build Rules
-.PHONY: all release debug clean flash erase info
+.PHONY: all release debug clean flash erase info compdb
 all: release
 
 memory: CFLAGS += -g
@@ -155,7 +155,18 @@ erase:
 		-c "$(OPENOCD_TARGET) mass_erase 0" \
         -c "exit"
 clean:
-	@rm -rf obj bin
+	@rm -rf "$(OBJDIR)" "$(BINDIR)"
+
+compdb:
+	@tmp="$$(mktemp "$(CURDIR)/.compile_commands.json.XXXXXX")"; \
+	trap 'rm -f "$$tmp"' EXIT; \
+	compiledb -n -f --full-path -o "$$tmp" make release; \
+	grep -q '"file"' "$$tmp" || { \
+		printf "error: compiledb did not generate any compilation commands\n" >&2; \
+		exit 1; \
+	}; \
+	mv "$$tmp" "$(CURDIR)/compile_commands.json"
+	@printf "$(C_GREEN) [OK] $(C_NC)       $(C_YELLOW) Generated:$(C_NC)\tcompile_commands.json\n"
 
 debug: OPTIMIZE = -O0
 debug: CFLAGS += -g3
